@@ -1,0 +1,106 @@
+# EXP-11: Static Partitioning in Hive
+
+## Concept
+Static Partitioning means:
+- User manually specifies partition value while loading data
+- Example partitions:
+  year=2023
+  year=2024
+
+--------------------------------------------------
+
+## STEP 1: Create Sample Data Files
+
+nano sales2023.csv
+Add:
+1,Laptop
+2,Mobile
+
+nano sales2024.csv
+Add:
+3,TV
+4,Fridge
+
+--------------------------------------------------
+
+## STEP 2: Upload Data to HDFS
+
+hdfs dfs -mkdir /user/cloudera/sales_data
+
+hdfs dfs -put sales2023.csv /user/cloudera/sales_data/
+hdfs dfs -put sales2024.csv /user/cloudera/sales_data/
+
+Verify:
+hdfs dfs -ls /user/cloudera/sales_data
+
+--------------------------------------------------
+
+## STEP 3: Open Hive
+
+hive
+
+--------------------------------------------------
+
+## STEP 4: Create Database
+
+CREATE DATABASE retail;
+USE retail;
+
+--------------------------------------------------
+
+## STEP 5: Create Partitioned Table
+
+CREATE TABLE sales (
+    id INT,
+    product STRING
+)
+PARTITIONED BY (year INT)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ',';
+
+--------------------------------------------------
+
+## STEP 6: Load Data (Static Partitioning)
+
+Load 2023 Data:
+LOAD DATA INPATH '/user/cloudera/sales_data/sales2023.csv'
+INTO TABLE sales
+PARTITION (year=2023);
+
+Load 2024 Data:
+LOAD DATA INPATH '/user/cloudera/sales_data/sales2024.csv'
+INTO TABLE sales
+PARTITION (year=2024);
+
+--------------------------------------------------
+
+## STEP 7: Verify Table Data
+
+SELECT * FROM sales;
+
+Expected Output:
+1   Laptop   2023
+2   Mobile   2023
+3   TV       2024
+4   Fridge   2024
+
+--------------------------------------------------
+
+## STEP 8: Query Specific Partition
+
+SELECT * FROM sales WHERE year=2023;
+
+--------------------------------------------------
+
+## STEP 9: Check Partitions
+
+SHOW PARTITIONS sales;
+
+--------------------------------------------------
+
+## STEP 10: Verify in HDFS
+
+hdfs dfs -ls /user/hive/warehouse/retail.db/sales
+
+Check partition folders:
+hdfs dfs -ls /user/hive/warehouse/retail.db/sales/year=2023
