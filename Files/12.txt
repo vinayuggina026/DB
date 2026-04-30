@@ -1,0 +1,193 @@
+# EXP-12: Bucketed Table in Hive + UDF
+
+## Concept
+
+### Bucketing
+- Data is divided into fixed number of files using hash function
+- Improves performance for joins and sampling
+
+### UDF (User Defined Function)
+- Custom function written in Java
+- Extends Hive functionality
+
+--------------------------------------------------
+
+## STEP 1: Create Sample Data
+
+nano student.csv
+Add:
+1,Ram
+2,Sita
+3,Ravi
+4,Anita
+5,John
+6,Meena
+
+--------------------------------------------------
+
+## STEP 2: Upload to HDFS
+
+hdfs dfs -mkdir /user/cloudera/hive_bucket
+
+hdfs dfs -put student.csv /user/cloudera/hive_bucket/
+
+--------------------------------------------------
+
+## STEP 3: Open Hive
+
+hive
+
+--------------------------------------------------
+
+## STEP 4: Create Database
+
+CREATE DATABASE college;
+USE college;
+
+--------------------------------------------------
+
+## STEP 5: Create Bucketed Table
+
+CREATE TABLE student_bucket (
+    id INT,
+    name STRING
+)
+CLUSTERED BY (id)
+INTO 3 BUCKETS
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ',';
+
+--------------------------------------------------
+
+## STEP 6: Enable Bucketing
+
+SET hive.enforce.bucketing=true;
+
+--------------------------------------------------
+
+## STEP 7: Load Data
+
+### Create Temporary Table
+CREATE TABLE temp_student (
+    id INT,
+    name STRING
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ',';
+
+### Load Data
+LOAD DATA INPATH '/user/cloudera/hive_bucket/student.csv'
+INTO TABLE temp_student;
+
+### Insert into Bucket Table
+INSERT INTO student_bucket
+SELECT * FROM temp_student;
+
+--------------------------------------------------
+
+## STEP 8: Verify Bucketing in HDFS
+
+hdfs dfs -ls /user/hive/warehouse/college.db/student_bucket
+
+Output files:
+000000_0
+000001_0
+000002_0
+
+Each file = one bucket
+
+--------------------------------------------------
+
+## STEP 9: Create UDF (Java Code)
+
+nano UpperCaseUDF.java
+
+import org.apache.hadoop.hive.ql.exec.UDF;
+import org.apache.hadoop.io.Text;
+
+public class UpperCaseUDF extends UDF {
+    public Text evaluate(Text input) {
+        if (input == null) return null;
+        return new Text(input.toString().toUpperCase());
+    }
+}
+
+--------------------------------------------------
+
+## STEP 10: Compile and Create JAR
+
+javac -cp $(hadoop classpath) UpperCaseUDF.java
+
+jar -cvf udf.jar UpperCaseUDF.class
+
+--------------------------------------------------
+
+## STEP 11: Load UDF in Hive
+
+ADD JAR /home/cloudera/udf.jar;
+
+CREATE TEMPORARY FUNCTION myupper AS 'UpperCaseUDF';
+
+--------------------------------------------------
+
+## STEP 12: Run Queries with UDF
+
+### 1. Convert names to uppercase
+SELECT id, myupper(name) FROM student_bucket;
+
+### 2. Filter using UDF
+SELECT myupper(name) FROM student_bucket WHERE id > 3;
+
+### 3. Order results
+SELECT id, myupper(name) FROM student_bucket ORDER BY id;
+
+--------------------------------------------------
+
+## Expected Output
+
+1 RAM
+2 SITA
+3 RAVI
+4 ANITA
+5 JOHN
+6 MEENA
+
+--------------------------------------------------
+
+## Internal Working
+
+Data → Hash(id) → Buckets → Files in HDFS → Query → UDF Applied
+
+--------------------------------------------------
+
+## Important Points
+
+- Bucketing uses hash function
+- Fixed number of buckets
+- Improves join and sampling performance
+- UDF extends Hive functionality
+
+--------------------------------------------------
+
+## Common Errors
+
+### Bucketing not applied
+SET hive.enforce.bucketing=true;
+
+### UDF not working
+Check:
+- JAR path
+- Class name
+
+### Compilation error
+Ensure Hadoop classpath is correct
+
+--------------------------------------------------
+
+## Viva Questions
+
+1. What is bucketing in Hive?
+2. Difference between partitioning and bucketing?
+3. What is UDF?
+4. How to register UDF in Hive?
+5. Why is bucketing used?

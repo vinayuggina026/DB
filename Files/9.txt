@@ -1,0 +1,130 @@
+# Experiment 9: Pig Script using Macros
+
+## Concept
+- Pig Macro = reusable block of Pig Latin code
+- Helps avoid repeating same logic
+- Improves modularity and readability
+
+--------------------------------------------------
+
+## STEP 1: Create Sample Log File
+
+nano log.txt
+
+Add:
+192.168.1.1 - - [10/Oct/2023] GET /home 200
+192.168.1.2 - - [10/Oct/2023] GET /login 404
+192.168.1.1 - - [10/Oct/2023] POST /form 200
+192.168.1.3 - - [10/Oct/2023] GET /home 500
+192.168.1.2 - - [10/Oct/2023] GET /home 200
+
+--------------------------------------------------
+
+## STEP 2: Upload to HDFS
+
+hdfs dfs -mkdir /user/cloudera/logs
+
+hdfs dfs -put log.txt /user/cloudera/logs/
+
+Check:
+hdfs dfs -ls /user/cloudera/logs
+
+--------------------------------------------------
+
+## STEP 3: Create Pig Script with Macro
+
+nano macro_log_analysis.pig
+
+--------------------------------------------------
+
+## Pig Script (Macro Example)
+
+-- Define Macro
+DEFINE count_by_ip(data) RETURNS result {
+
+    grouped = GROUP $data BY ip;
+
+    $result = FOREACH grouped GENERATE 
+                group AS ip,
+                COUNT($data) AS total_requests;
+};
+
+-- Load data
+A = LOAD '/user/cloudera/logs/log.txt'
+    USING PigStorage(' ')
+    AS (ip:chararray, d1:chararray, d2:chararray,
+        date:chararray, method:chararray, url:chararray, status:int);
+
+-- Extract IP only
+B = FOREACH A GENERATE ip;
+
+-- Call macro
+C = count_by_ip(B);
+
+-- Output result
+DUMP C;
+
+--------------------------------------------------
+
+## STEP 4: Execute Pig Script
+
+pig macro_log_analysis.pig
+
+--------------------------------------------------
+
+## Expected Output
+
+(192.168.1.1,2)
+(192.168.1.2,2)
+(192.168.1.3,1)
+
+--------------------------------------------------
+
+## STEP 5: Store Output in HDFS
+
+Add this line to script:
+STORE C INTO '/user/cloudera/output/macro_result';
+
+Run script again.
+
+--------------------------------------------------
+
+## STEP 6: Verify Output in HDFS
+
+hdfs dfs -ls /user/cloudera/output/macro_result
+
+hdfs dfs -cat /user/cloudera/output/macro_result/*
+
+--------------------------------------------------
+
+## Internal Working
+
+Input Log Data
+   ↓
+Pig LOAD
+   ↓
+Macro Function (Reusable Logic)
+   ↓
+Group by IP
+   ↓
+Count Requests
+   ↓
+Output Stored in HDFS
+
+--------------------------------------------------
+
+## Important Points
+
+- Macros reduce code duplication
+- They are reusable functions in Pig
+- Improve readability and modular design
+
+--------------------------------------------------
+
+## Viva Questions
+
+1. What is a macro in Pig?
+2. Difference between macro and UDF?
+3. Why use macros in Pig scripts?
+4. How does GROUP BY work in Pig?
+5. What is PigStorage?
