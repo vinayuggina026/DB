@@ -1,0 +1,146 @@
+EXP-10: Create Managed and External Tables to Load a CSV File from Local Storage. 
+Verify the Location of Table Data in HDFS and Perform Query Operations
+
+Objective:
+Create managed and external tables in Hive, load CSV data, verify storage location, and perform queries.
+
+----------------------------------------
+
+STEP 1: Create CSV File (Local System)
+
+nano student.csv
+
+Add data:
+1,Ram,85
+2,Sita,90
+3,Ravi,78
+4,Anita,88
+
+----------------------------------------
+
+STEP 2: Upload File to HDFS
+
+hdfs dfs -mkdir /user/cloudera/hive_data
+hdfs dfs -put student.csv /user/cloudera/hive_data/
+
+Verify:
+hdfs dfs -ls /user/cloudera/hive_data
+
+----------------------------------------
+
+STEP 3: Open Hive Shell
+
+hive
+
+----------------------------------------
+
+STEP 4: Create Database
+
+CREATE DATABASE college;
+USE college;
+
+----------------------------------------
+
+STEP 5: Create Managed Table
+
+CREATE TABLE student_managed (
+    id INT,
+    name STRING,
+    marks INT
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ',';
+
+----------------------------------------
+
+STEP 6: Load Data into Managed Table
+
+LOAD DATA INPATH '/user/cloudera/hive_data/student.csv'
+INTO TABLE student_managed;
+
+----------------------------------------
+
+STEP 7: Verify Data in Managed Table
+
+SELECT * FROM student_managed;
+
+----------------------------------------
+
+STEP 8: Check HDFS Location of Managed Table
+
+DESCRIBE FORMATTED student_managed;
+
+Look for:
+Location: /user/hive/warehouse/college.db/student_managed
+
+Check in HDFS:
+hdfs dfs -ls /user/hive/warehouse/college.db/student_managed
+
+----------------------------------------
+
+STEP 9: Create External Table
+
+CREATE EXTERNAL TABLE student_external (
+    id INT,
+    name STRING,
+    marks INT
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+LOCATION '/user/cloudera/hive_data/';
+
+----------------------------------------
+
+STEP 10: Verify External Table Data
+
+SELECT * FROM student_external;
+
+----------------------------------------
+
+STEP 11: Check HDFS Location of External Table
+
+DESCRIBE FORMATTED student_external;
+
+Location:
+/user/cloudera/hive_data/
+
+----------------------------------------
+
+STEP 12: Perform Query Operations
+
+1. Select all data
+SELECT * FROM student_managed;
+
+2. Filter data
+SELECT * FROM student_managed WHERE marks > 80;
+
+3. Count records
+SELECT COUNT(*) FROM student_managed;
+
+4. Average marks
+SELECT AVG(marks) FROM student_managed;
+
+5. Order by marks
+SELECT * FROM student_managed ORDER BY marks DESC;
+
+----------------------------------------
+
+STEP 13: Drop Tables (Important Concept)
+
+DROP TABLE student_managed;
+-- Data deleted from HDFS
+
+DROP TABLE student_external;
+-- Data remains in HDFS
+
+Check:
+hdfs dfs -ls /user/cloudera/hive_data
+
+----------------------------------------
+
+Expected Output:
+
+1   Ram    85
+2   Sita   90
+3   Ravi   78
+4   Anita  88
